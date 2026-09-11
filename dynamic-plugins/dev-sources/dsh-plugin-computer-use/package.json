@@ -1,0 +1,25 @@
+{
+  "name": "dsh-tool-computer-use",
+  "description": "Computer use for DeepSeek Harness: screenshot, mouse, and keyboard control of the local macOS session",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./lib/client.js"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web"
+    }
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=0.1.2-alpha.0",
+    "@deepseek-ai/dsh-tools": ">=0.1.2-alpha.0",
+    "@deepseek-ai/schemastery": ">=0.1.2-alpha.0"
+  }
+}

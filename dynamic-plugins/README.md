@@ -25,6 +25,12 @@ DSH 的插件除了 `packages/` 源码树里的正式插件外，还有一类「
 
 `headless` profile 当前 patch 为空（`[]`），无固化插件。
 
+### 开发源码（`dev-sources/`）
+
+profile 里的插件是**构建产物**（esbuild 打包后的 index.js / lib/client.js）。对应的可构建开发源码：
+
+- [dsh-plugin-computer-use](dev-sources/dsh-plugin-computer-use/) —— computer-use 的完整开发仓库：`src/`（client 未打包源码）、`tests/`（2 个 node:test 文件，34 个用例：按键解析/坐标换算/权限求交/后端路由等）、`build.sh`（esbuild 出 CJS + `__ModuleLoader__.load` wrapper，含 client 产物格式强制说明）、`install.sh`
+
 ## 形态二：纯会话级动态插件（`task-progress-hud/`）
 
 通过 `cordis_define` + `cordis_run` 在会话中定义/激活，**进程重启即消失**，本目录即其源码存档与再部署说明：
