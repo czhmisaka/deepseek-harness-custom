@@ -1,0 +1,3 @@
+name: GLM 工具 agent（glm-5.3-flash）
+description: 基于 PTC 编码 Agent 的 glm-5.3-flash 专用预设：默认模型 glm-5.3-flash，persona 内置「工具执行铁律」（逼真调用 read/run_code、禁止纯文字空转收尾、中文简洁、先结论后依据），适合设备数据修复/看板类任务。
+order: 3

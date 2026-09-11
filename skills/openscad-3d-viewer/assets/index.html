@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>手抛无人机 - 3D模型浏览器</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a0f; --panel: #12121a; --border: #1e1e2e;
+      --text: #e0e0e0; --text-dim: #666; --accent: #ff6b35;
+      --accent2: #ffd700; --hover: #1a1a2e;
+    }
+    body {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden;
+    }
+    #sidebar { width: 280px; min-width: 280px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    #sidebar-header { padding: 20px 16px 16px; border-bottom: 1px solid var(--border); }
+    #sidebar-header h1 { font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.05em; text-transform: uppercase; }
+    #sidebar-header p { font-size: 10px; color: var(--text-dim); margin-top: 4px; }
+    #mode-toggle { display: flex; gap: 6px; margin-top: 12px; }
+    #mode-toggle button { flex: 1; padding: 8px 0; background: var(--bg); border: 1px solid var(--border); color: var(--text-dim); font-family: inherit; font-size: 11px; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
+    #mode-toggle button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    #mode-toggle button:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+    #view-toggle { display: flex; gap: 6px; margin-top: 8px; }
+    #view-toggle button { flex: 1; padding: 6px 0; background: var(--bg); border: 1px solid var(--border); color: var(--text-dim); font-family: inherit; font-size: 10px; cursor: pointer; border-radius: 4px; }
+    #view-toggle button.active { background: var(--border); color: var(--text); border-color: var(--text-dim); }
+    #parts-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+    #parts-list::-webkit-scrollbar { width: 4px; }
+    #parts-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .part-group { padding: 10px 16px 4px; font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; }
+    .part-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px; cursor: pointer; transition: background 0.15s; border-left: 2px solid transparent; }
+    .part-item:hover { background: var(--hover); }
+    .part-item.active { background: var(--hover); border-left-color: var(--accent); }
+    .part-item.active .part-name { color: var(--accent); }
+    .part-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+    .part-item.active .part-dot { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+    .part-info { flex: 1; min-width: 0; }
+    .part-name { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .part-size { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+    #viewer { flex: 1; position: relative; background: var(--bg); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    #canvas-container { width: 100%; height: 100%; }
+    #canvas-container canvas { display: block; }
+    #preview-container { width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 40px; }
+    #preview-container.active { display: flex; }
+    #preview-container img { max-width: 100%; max-height: 68vh; object-fit: contain; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .preview-thumbs { display: flex; gap: 8px; }
+    .thumb { width: 100px; height: 56px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; }
+    .thumb:hover, .thumb.active { border-color: var(--accent); }
+    #toolbar { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; background: rgba(18,18,26,0.85); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 8px; padding: 6px; z-index: 10; }
+    #toolbar button { width: 36px; height: 36px; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--text-dim); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    #toolbar button:hover { background: var(--hover); color: var(--text); }
+    #toolbar button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    #toolbar .sep { width: 1px; background: var(--border); margin: 4px 2px; }
+    #info-panel { position: absolute; bottom: 16px; right: 16px; background: rgba(18,18,26,0.85); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; min-width: 160px; z-index: 10; }
+    #info-panel h3 { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+    #info-content { font-size: 11px; line-height: 1.8; color: var(--text-dim); }
+    #info-content .val { color: var(--text); float: right; }
+    #loading { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: opacity 0.5s; }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+    .spinner { width: 40px; height: 40px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #loading p { margin-top: 16px; font-size: 12px; color: var(--text-dim); }
+    .hd-badge { font-size: 9px; background: var(--accent2); color: #000; padding: 1px 4px; border-radius: 2px; margin-left: 4px; }
+    .desc { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div id="loading"><div class="spinner"></div><p>加载模型中...</p></div>
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h1>🦀 皮筋手枪 &amp; 手抛无人机</h1>
+      <p>OpenSCAD + Blender 3D模型浏览器</p>
+      <div id="mode-toggle">
+        <button id="btn-drone" class="active">无人机</button>
+        <button id="btn-gun">皮筋手枪</button>
+      </div>
+      <div id="view-toggle">
+        <button id="btn-3d" class="active">3D交互</button>
+        <button id="btn-render">高清渲染</button>
+      </div>
+    </div>
+    <div id="parts-list"></div>
+  </div>
+  <div id="viewer">
+    <div id="canvas-container"></div>
+    <div id="preview-container">
+      <img id="preview-img" src="" alt="">
+      <div class="preview-thumbs">
+        <img class="thumb" id="thumb-persp" src="" onclick="setPreview('persp')">
+        <img class="thumb" id="thumb-top" src="" onclick="setPreview('top')">
+        <img class="thumb" id="thumb-side" src="" onclick="setPreview('side')">
+        <img class="thumb" id="thumb-exploded" src="" onclick="setPreview('exploded')">
+      </div>
+    </div>
+    <div id="toolbar">
+      <button id="btn-reset" title="重置视角">🎯</button>
+      <button id="btn-top" title="俯视图">⬇️</button>
+      <button id="btn-front" title="正视图">➡️</button>
+      <div class="sep"></div>
+      <button id="btn-explode" title="爆炸图">💥</button>
+      <button id="btn-auto" title="自动旋转">🔄</button>
+    </div>
+    <div id="info-panel">
+      <h3>模型信息</h3>
+      <div id="info-content">
+        <div><span>零件数</span><span class="val" id="info-count">—</span></div>
+        <div><span>三角面</span><span class="val" id="info-faces">—</span></div>
+        <div><span>顶点数</span><span class="val" id="info-verts">—</span></div>
+      </div>
+    </div>
+  </div>
+  <script src="three.min.js"></script>
+  <script src="OrbitControls.js"></script>
+  <script src="STLLoader.js"></script>
+  <script>
+    // ============================================================
+    // 配置
+    // ============================================================
+    const DRONE_PARTS = [
+      { name: '中央舱',    color: 0x303033, size: '70×60×28mm', desc: '电池仓+FC安装',          file: '01_Body.stl' },
+      { name: '折叠臂',    color: 0x4d4d55, size: '长95mm',      desc: '×4 可折叠',              file: '02_Arm.stl' },
+      { name: '电池仓盖',  color: 0x303033, size: '64×52×8mm',   desc: 'PETG/TPU',              file: '03_BatteryCover.stl' },
+      { name: '螺旋桨护圈', color: 0xe56600, size: '内径90mm',    desc: '×4 TPU柔性材料',        file: '04_PropGuard.stl' },
+      { name: '起落架',    color: 0x4d4d55, size: 'X形',         desc: 'PETG',                  file: '05_LandingGear.stl' },
+      { name: '电机转接板', color: 0x4d4d55, size: '直径40mm',    desc: '×4 12/16/19mm孔',     file: '06_MotorMountAdapter.stl' },
+      { name: '折叠臂(折叠)', color: 0x4d4d55, size: '折叠位',    desc: '验证折叠尺寸',          file: '07_ArmFolded.stl' },
+    ];
+
+    const DRONE_RENDERS = [
+      { name: '透视',   file: '../drone_v2_persp.png' },
+      { name: '俯视',   file: '../drone_v2_top.png' },
+      { name: '侧视',   file: '../drone_v2_side.png' },
+      { name: '爆炸图',  file: '../drone_v2_exploded.png' },
+    ];
+
+    const GUN_PARTS = [
+      { name: '下机匣',   color: 0x222222, size: '140×36×24mm', file: '01_LowerFrame.stl' },
+      { name: '枪管',     color: 0x555555, size: '外径16mm',     file: '02_Barrel.stl' },
+      { name: '后滑块',   color: 0xff6b35, size: '40×30×14mm',  file: '03_Slider.stl' },
+      { name: '扳机',     color: 0xaaaaaa, size: '30×6×26mm',   file: '04_Trigger.stl' },
+      { name: '扳机护圈', color: 0x222222, size: '内径30mm',     file: '05_TriggerGuard.stl' },
+      { name: '前准星',   color: 0x222222, size: '12×6×10mm',   file: '06_FrontSight.stl' },
+      { name: '后照门',   color: 0x222222, size: '20×8×12mm',   file: '07_RearSight.stl' },
+      { name: '扳机轴销', color: 0xaaaaaa, size: '直径3mm',       file: '08_PivotPin.stl' },
+    ];
+
+    const RENDER_MAP = { persp: '../drone_v2_persp.png', top: '../drone_v2_top.png', side: '../drone_v2_side.png', exploded: '../drone_v2_exploded.png' };
+
+    let scene, camera, renderer, controls;
+    let currentModel = 'drone';
+    let currentView = '3d';
+    let parts = [];
+    let autoRotate = false;
+    let isExploded = false;
+    let originalPositions = [];
+    let droneComponents = []; // 动态生成的机臂/电机/桨/护圈
+
+    // ============================================================
+    // Three.js 初始化
+    // ============================================================
+    function init() {
+      const container = document.getElementById('canvas-container');
+      const w = container.clientWidth, h = container.clientHeight;
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0a0f);
+
+      camera = new THREE.PerspectiveCamera(45, w / h, 0.01, 100);
+      camera.position.set(0.20, 0.15, 0.20);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.minDistance = 0.05;
+      controls.maxDistance = 1.0;
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+      const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+      sun.position.set(0.5, 0.8, 0.5);
+      scene.add(sun);
+      scene.add(new THREE.DirectionalLight(0x6688ff, 0.4));
+
+      const grid = new THREE.GridHelper(1, 30, 0x1a1a2e, 0x0f0f1a);
+      grid.position.y = -0.04;
+      scene.add(grid);
+
+      window.addEventListener('resize', onResize);
+      animate();
+
+      // 初始化缩略图
+      initThumbs();
+
+      loadModel('drone');
+      renderPartsList('drone');
+    }
+
+    function loadModel(modelKey) {
+      clearScene();
+      const defs = modelKey === 'drone' ? DRONE_PARTS : GUN_PARTS;
+      const base = modelKey === 'drone' ? './' : '../rubber_gun_openscad/';
+      document.getElementById('loading').classList.remove('hidden');
+
+      let loaded = 0;
+      originalPositions = [];
+
+      defs.forEach((def, i) => {
+        const loader = new THREE.STLLoader();
+        loader.load(
+          base + def.file,
+          (geo) => {
+            geo.computeVertexNormals();
+            const mat = new THREE.MeshPhongMaterial({ color: def.color, specular: 0x444444, shininess: 30 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.castShadow = true;
+            mesh.userData = { name: def.name, index: i, def };
+            geo.center();
+            const box = new THREE.Box3().setFromObject(mesh);
+            const maxDim = Math.max(...box.getSize(new THREE.Vector3()).toArray());
+            mesh.scale.setScalar(0.08 / maxDim);
+            mesh.rotation.x = -Math.PI / 2;
+            scene.add(mesh);
+            parts.push(mesh);
+
+            // 居中
+            const box2 = new THREE.Box3();
+            parts.forEach(m => box2.expandByObject(m));
+            const center = box2.getCenter(new THREE.Vector3());
+            parts.forEach(m => m.position.sub(center));
+            originalPositions.push(mesh.position.clone());
+
+            if (++loaded === defs.length) {
+              originalPositions = parts.map(m => m.position.clone());
+              updateStats();
+              document.getElementById('loading').classList.add('hidden');
+              if (modelKey === 'drone') buildDroneComponents(true);
+            }
+          },
+          undefined,
+          () => {
+            const geo = new THREE.BoxGeometry(0.02, 0.02, 0.02);
+            const mat = new THREE.MeshPhongMaterial({ color: def.color, wireframe: true });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.userData = { name: def.name, index: i, def };
+            scene.add(mesh);
+            parts.push(mesh);
+            originalPositions.push(new THREE.Vector3(0, 0, 0));
+            if (++loaded === defs.length) {
+              originalPositions = parts.map(m => m.position.clone());
+              updateStats();
+              document.getElementById('loading').classList.add('hidden');
+              if (modelKey === 'drone') buildDroneComponents(true);
+            }
+          }
+        );
+      });
+    }
+
+    function updateStats() {
+      let faces = 0, verts = 0;
+      [...parts, ...droneComponents].forEach(m => {
+        if (m.geometry) {
+          const cnt = m.geometry.attributes.position.count;
+          faces += cnt / 3; verts += cnt;
+        }
+      });
+      document.getElementById('info-count').textContent = parts.length + droneComponents.length;
+      document.getElementById('info-faces').textContent = Math.round(faces).toLocaleString();
+      document.getElementById('info-verts').textContent = Math.round(verts).toLocaleString();
+    }
+
+    function clearScene() {
+      parts.forEach(m => { scene.remove(m); if (m.geometry) m.geometry.dispose(); });
+      droneComponents.forEach(m => { scene.remove(m); if (m.geometry) m.geometry.dispose(); });
+      parts = []; droneComponents = []; originalPositions = []; isExploded = false;
+    }
+
+    // ============================================================
+    // 无人机动态组件（机臂+电机+桨+护圈）
+    // ============================================================
+    function buildDroneComponents(assembled) {
+      droneComponents.forEach(m => { scene.remove(m); if (m.geometry) m.geometry.dispose(); });
+      droneComponents = [];
+
+      const ARM = 0.07;
+      const MOTOR_Z = 0.003;
+      const PROP_Z = MOTOR_Z + 0.012;
+      const GUARD_Z = PROP_Z;
+      const explodeScale = assembled ? 0 : 0.06;
+
+      for (let i = 0; i < 4; i++) {
+        const angle = [45, 135, 225, 315][i] * Math.PI / 180;
+        const cx = Math.cos(angle) * ARM;
+        const cy = Math.sin(angle) * ARM;
+
+        // 臂身
+        addComp(new THREE.BoxGeometry(0.008, ARM * 0.85, 0.005),
+          new THREE.MeshPhongMaterial({ color: 0x4d4d55 }),
+          cx * 0.5, cy * 0.5, 0,
+          { rz: angle, ox: Math.cos(angle + Math.PI/2) * explodeScale, oy: Math.sin(angle + Math.PI/2) * explodeScale });
+
+        // 电机
+        addComp(new THREE.CylinderGeometry(0.010, 0.010, 0.008, 48),
+          new THREE.MeshPhongMaterial({ color: 0x141414, roughness: 0.8 }),
+          cx, cy, assembled ? MOTOR_Z : MOTOR_Z + explodeScale * 2);
+
+        // 螺旋桨 x2
+        for (let b = 0; b < 2; b++) {
+          const bAngle = angle + b * Math.PI;
+          const bx = cx + Math.cos(bAngle) * 0.022;
+          const by = cy + Math.sin(bAngle) * 0.022;
+
+          addComp(new THREE.BoxGeometry(0.0035, 0.022, 0.001),
+            new THREE.MeshPhongMaterial({ color: 0x0a0a0a, roughness: 0.2 }),
+            bx, by, assembled ? PROP_Z : PROP_Z + explodeScale * 3,
+            { rz: bAngle });
+
+          addComp(new THREE.CylinderGeometry(0.002, 0.002, 0.002, 20),
+            new THREE.MeshPhongMaterial({ color: 0xcccccc, roughness: 0.3 }),
+            bx, by, assembled ? PROP_Z : PROP_Z + explodeScale * 3);
+        }
+
+        // 护圈
+        addComp(new THREE.TorusGeometry(0.036, 0.0025, 8, 48),
+          new THREE.MeshPhongMaterial({ color: 0xe56600, roughness: 0.4 }),
+          cx, cy, assembled ? GUARD_Z : GUARD_Z + explodeScale * 4);
+
+        // 连接杆
+        for (let r = 0; r < 4; r++) {
+          const rA = r * Math.PI / 2;
+          addComp(new THREE.CylinderGeometry(0.0015, 0.0015, 0.004, 12),
+            new THREE.MeshPhongMaterial({ color: 0x4d4d55 }),
+            cx + Math.cos(rA) * 0.020, cy + Math.sin(rA) * 0.020,
+            assembled ? GUARD_Z : GUARD_Z + explodeScale * 4);
+        }
+      }
+
+      // 起落架
+      for (let d = 0; d < 4; d++) {
+        const da = [35, 145, 215, 325][d] * Math.PI / 180;
+        addComp(new THREE.BoxGeometry(0.003, 0.038, 0.003),
+          new THREE.MeshPhongMaterial({ color: 0x4d4d55 }),
+          Math.cos(da) * 0.025, Math.sin(da) * 0.025, assembled ? -0.025 : -0.055,
+          { rx: 0.21, rz: da });
+      }
+
+      // 脚垫
+      for (const [px, py] of [[0.032,0.022],[-0.032,0.022],[0.032,-0.022],[-0.032,-0.022]]) {
+        addComp(new THREE.CylinderGeometry(0.005, 0.005, 0.004, 24),
+          new THREE.MeshPhongMaterial({ color: 0xe56600, roughness: 0.8 }),
+          px, py, assembled ? -0.038 : -0.068);
+      }
+
+      // 相机
+      addComp(new THREE.CylinderGeometry(0.008, 0.008, 0.006, 48),
+        new THREE.MeshPhongMaterial({ color: 0x141414, roughness: 0.2 }),
+        0, 0, assembled ? -0.020 : -0.048,
+        { rx: Math.PI/2 });
+      addComp(new THREE.CylinderGeometry(0.004, 0.004, 0.003, 32),
+        new THREE.MeshPhongMaterial({ color: 0x0d0d14, roughness: 0.05 }),
+        0, 0, assembled ? -0.025 : -0.053,
+        { rx: Math.PI/2 });
+    }
+
+    function addComp(geo, mat, x, y, z, rot) {
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x + (rot?.ox || 0), y + (rot?.oy || 0), z);
+      if (rot?.rx) mesh.rotation.x = rot.rx;
+      if (rot?.rz) mesh.rotation.z = rot.rz;
+      scene.add(mesh);
+      droneComponents.push(mesh);
+    }
+
+    function toggleExplode() {
+      isExploded = !isExploded;
+      document.getElementById('btn-explode').classList.toggle('active', isExploded);
+      if (currentModel === 'drone') {
+        buildDroneComponents(!isExploded);
+      }
+    }
+
+    // ============================================================
+    // 渲染列表
+    // ============================================================
+    function renderPartsList(modelKey) {
+      const list = document.getElementById('parts-list');
+      const defs = modelKey === 'drone' ? DRONE_PARTS : GUN_PARTS;
+
+      list.innerHTML = '<div class="part-group">📦 零件列表</div>';
+      defs.forEach((def, i) => {
+        const item = document.createElement('div');
+        item.className = 'part-item';
+        item.innerHTML = `<div class="part-dot"></div><div class="part-info"><div class="part-name">${def.name}</div><div class="part-size">${def.size}</div><div class="desc">${def.desc || ''}</div></div>`;
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.part-item').forEach(e => e.classList.remove('active'));
+          item.classList.add('active');
+          highlightPart(i);
+        });
+        list.appendChild(item);
+      });
+
+      // 无人机特有的动态组件
+      if (modelKey === 'drone') {
+        const dynGroup = document.createElement('div');
+        dynGroup.className = 'part-group';
+        dynGroup.style.marginTop = '8px';
+        dynGroup.textContent = '🔩 动态组件（自动生成）';
+        list.appendChild(dynGroup);
+
+        const dynItems = ['机臂×4', '电机×4', '螺旋桨×8', '护圈×4', '起落架', '底部相机'];
+        dynItems.forEach(name => {
+          const item = document.createElement('div');
+          item.className = 'part-item';
+          item.innerHTML = `<div class="part-dot" style="background:#e56600"></div><div class="part-info"><div class="part-name" style="color:#e56600">${name}</div></div>`;
+          list.appendChild(item);
+        });
+
+        // 高清渲染
+        const rGroup = document.createElement('div');
+        rGroup.className = 'part-group';
+        rGroup.style.marginTop = '8px';
+        rGroup.textContent = '🖼️ Blender 高清渲染';
+        list.appendChild(rGroup);
+
+        DRONE_RENDERS.forEach(r => {
+          const item = document.createElement('div');
+          item.className = 'part-item';
+          item.innerHTML = `<div class="part-dot" style="background:#ff9500"></div><div class="part-info"><div class="part-name">${r.name}<span class="hd-badge">HD</span></div></div>`;
+          item.addEventListener('click', () => showRenderView(r.file, r.name));
+          list.appendChild(item);
+        });
+      }
+    }
+
+    function highlightPart(index) {
+      if (currentView !== '3d') return;
+      parts.forEach((m, i) => {
+        if (i === index) {
+          m.material.emissive = new THREE.Color(0x331100);
+        } else {
+          m.material.emissive = new THREE.Color(0);
+          m.material.opacity = 0.2;
+        }
+        m.visible = true;
+      });
+      setTimeout(() => {
+        parts.forEach(m => { m.material.emissive = new THREE.Color(0); m.material.opacity = 1; });
+      }, 2000);
+    }
+
+    // ============================================================
+    // 渲染图
+    // ============================================================
+    function showRenderView(file, name) {
+      currentView = 'render';
+      document.getElementById('canvas-container').style.display = 'none';
+      const pc = document.getElementById('preview-container');
+      pc.classList.add('active');
+      document.getElementById('preview-img').src = file;
+      document.getElementById('preview-img').alt = name;
+      document.getElementById('btn-3d').classList.remove('active');
+      document.getElementById('btn-render').classList.add('active');
+      document.getElementById('toolbar').style.display = 'none';
+    }
+
+    function show3DView() {
+      currentView = '3d';
+      document.getElementById('canvas-container').style.display = 'block';
+      document.getElementById('preview-container').classList.remove('active');
+      document.getElementById('btn-3d').classList.add('active');
+      document.getElementById('btn-render').classList.remove('active');
+      document.getElementById('toolbar').style.display = 'flex';
+      parts.forEach(m => { m.visible = true; m.material.emissive = new THREE.Color(0); m.material.opacity = 1; });
+    }
+
+    window.setPreview = function(view) {
+      const file = RENDER_MAP[view] || RENDER_MAP.persp;
+      document.getElementById('preview-img').src = file;
+      document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
+      const el = document.getElementById('thumb-' + view);
+      if (el) el.classList.add('active');
+    };
+
+    function initThumbs() {
+      document.getElementById('thumb-persp').src = '../drone_v2_persp.png';
+      document.getElementById('thumb-top').src = '../drone_v2_top.png';
+      document.getElementById('thumb-side').src = '../drone_v2_side.png';
+      document.getElementById('thumb-exploded').src = '../drone_v2_exploded.png';
+    }
+
+    // ============================================================
+    // 工具
+    // ============================================================
+    function resetCamera() { camera.position.set(0.20, 0.15, 0.20); controls.target.set(0,0,0); controls.update(); }
+    function viewTop() { camera.position.set(0, 0.30, 0); controls.target.set(0,0,0); controls.update(); }
+    function viewFront() { camera.position.set(0, 0, 0.30); controls.target.set(0,0,0); controls.update(); }
+    function toggleAutoRotate() {
+      autoRotate = !autoRotate;
+      document.getElementById('btn-auto').classList.toggle('active', autoRotate);
+      controls.autoRotate = autoRotate;
+      controls.autoRotateSpeed = 1.5;
+    }
+    function onResize() {
+      const c = document.getElementById('canvas-container');
+      camera.aspect = c.clientWidth / c.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(c.clientWidth, c.clientHeight);
+    }
+    function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+
+    // ============================================================
+    // 事件
+    // ============================================================
+    document.getElementById('btn-reset').addEventListener('click', resetCamera);
+    document.getElementById('btn-top').addEventListener('click', viewTop);
+    document.getElementById('btn-front').addEventListener('click', viewFront);
+    document.getElementById('btn-explode').addEventListener('click', toggleExplode);
+    document.getElementById('btn-auto').addEventListener('click', toggleAutoRotate);
+    document.getElementById('btn-3d').addEventListener('click', show3DView);
+    document.getElementById('btn-render').addEventListener('click', () => showRenderView('../drone_v2_persp.png', '透视'));
+
+    document.getElementById('btn-drone').addEventListener('click', () => {
+      currentModel = 'drone';
+      document.getElementById('btn-drone').classList.add('active');
+      document.getElementById('btn-gun').classList.remove('active');
+      isExploded = false;
+      document.getElementById('btn-explode').classList.remove('active');
+      loadModel('drone');
+      renderPartsList('drone');
+      show3DView();
+    });
+
+    document.getElementById('btn-gun').addEventListener('click', () => {
+      currentModel = 'gun';
+      document.getElementById('btn-gun').classList.add('active');
+      document.getElementById('btn-drone').classList.remove('active');
+      loadModel('gun');
+      renderPartsList('gun');
+      show3DView();
+    });
+
+    document.getElementById('parts-list').addEventListener('dblclick', e => {
+      if (!e.target.closest('.part-item')) show3DView();
+    });
+
+    // 拖放
+    window.addEventListener('dragover', e => e.preventDefault());
+    window.addEventListener('drop', e => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file && file.name.endsWith('.stl')) {
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const geo = new THREE.STLLoader().parse(ev.target.result);
+          geo.computeVertexNormals();
+          clearScene();
+          const mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ color: 0x888899 }));
+          mesh.rotation.x = -Math.PI / 2;
+          scene.add(mesh); parts.push(mesh);
+          updateStats();
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

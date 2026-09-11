@@ -1,0 +1,147 @@
+/* Liquid Glass structural effects — active only while body[data-ds-glass] is
+   set by the theme plugin. Token values (translucent fills) come from the
+   registered theme; this sheet adds what tokens cannot express: the aurora
+   base under the sea canvas, backdrop blur, and specular edges. */
+
+body[data-ds-glass] {
+  /* The aurora base behind the sea canvas (the canvas draws over it). */
+  background:
+    radial-gradient(120% 90% at 12% 0%, rgb(48 62 120 / 55%) 0%, transparent 55%),
+    radial-gradient(100% 80% at 88% 12%, rgb(28 96 120 / 42%) 0%, transparent 58%),
+    radial-gradient(120% 120% at 82% 100%, rgb(84 48 140 / 38%) 0%, transparent 60%),
+    radial-gradient(90% 90% at 40% 100%, rgb(20 60 90 / 30%) 0%, transparent 55%),
+    #070b14;
+  background-attachment: fixed;
+}
+
+/* Sea wallpaper: the bottom-most layer (flowing color bands). A light scrim
+   keeps UI text readable above it; the canvas ignores pointer events. */
+[data-dsg-sea-wallpaper] {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+[data-dsg-sea-wallpaper]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgb(4 7 14 / 10%);
+}
+
+/* The app frame rides above the wallpaper. */
+body[data-ds-glass] > [class*=frame] {
+  position: relative;
+  z-index: 1;
+}
+
+/* Sidebar column: backdrop blur over the wallpaper. The blur lives on an
+   absolute ::before layer, not the column itself: a backdrop-filter element
+   becomes the containing block for fixed-position descendants, and the
+   settings modal mounts inside this subtree — a column-level filter would
+   trap its full-viewport overlay in the sidebar box and squeeze the panel.
+   The column keeps only position:relative (the ::before's anchor) and no
+   z-index: a non-auto z-index would create a stacking context that pins
+   the modal under the later center column. */
+body[data-ds-glass] [class*=sidebarCol] {
+  position: relative;
+}
+
+body[data-ds-glass] [class*=sidebarCol]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  backdrop-filter: blur(2px) saturate(150%);
+  background: var(--dsw-specific-sidebar-fill);
+  pointer-events: none;
+}
+
+/* Center and details columns get a whisper of blur so cards float — on a
+   ::before layer, for the same fixed-position reason as the sidebar. */
+body[data-ds-glass] [class*=centerCol],
+body[data-ds-glass] [class*=detailsCol] {
+  position: relative;
+}
+
+body[data-ds-glass] [class*=centerCol]::before,
+body[data-ds-glass] [class*=detailsCol]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+/* Shell overlay occupants (dialogs, popovers, the usage bubble and panel). */
+body[data-ds-glass] [data-shell-overlay] > * {
+  backdrop-filter: blur(var(--dsg-blur-main, 26px)) saturate(170%);
+}
+
+/* Specular edge: a light-catching inner hairline on glass panes. */
+body[data-ds-glass] [data-shell-overlay] > * {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 14%),
+    inset 1px 0 0 rgb(255 255 255 / 7%),
+    inset -1px 0 0 rgb(255 255 255 / 7%),
+    0 8px 32px rgb(0 0 0 / 25%);
+}
+
+/* Cards and raised panes across features turn into frosted panes. */
+body[data-ds-glass] [class*=_card_],
+body[data-ds-glass] [class*=_panel_]:not([data-shell-overlay]) {
+  backdrop-filter: blur(calc(var(--dsg-blur-main, 26px) * 0.7)) saturate(140%);
+}
+
+/* The settings dialog itself becomes the hero glass sheet. The shell renders
+   it as div[role=dialog], not a <dialog> element, so both selectors match. */
+body[data-ds-glass] dialog,
+body[data-ds-glass] [role=dialog] {
+  backdrop-filter: blur(calc(var(--dsg-blur-main, 26px) + 4px)) saturate(160%);
+}
+
+/* Conversation surfaces (composer, bubbles, code). The CSS Modules build
+   emits `<hash>_<name>` class tokens, so anchors match a token's tail:
+   `[class$=_bubble]` selects a bubble token while excluding the usage
+   bubble's full-viewport transparent `bubbleLayer` — a transparent element
+   still shows backdrop-filter, so loose substring anchors would frost the
+   whole app. Backdrop-filter is only visible through translucent fills, so
+   opaque surfaces (tooltips, menus) are safe to match. */
+
+/* The composer card (stable data hook) becomes the hero input pane. */
+body[data-ds-glass] [data-composer-card] {
+  backdrop-filter: blur(var(--dsg-blur-main, 26px)) saturate(170%);
+}
+
+/* User message bubbles (chat and the goal-command echo). */
+body[data-ds-glass] [class$=_bubble],
+body[data-ds-glass] [class*="_bubble "] {
+  backdrop-filter: blur(calc(var(--dsg-blur-main, 26px) * 0.8)) saturate(160%);
+}
+
+/* Tool block cards (terminal, read, web, search, diff) share the code-fill
+   token and go translucent; frost them as one pane. ui-primitives bundles
+   class tokens as `_name_hash`, so the `_block_` substring anchor reaches
+   them while the tail anchor covers the hash-first packages. */
+body[data-ds-glass] [class$=_block],
+body[data-ds-glass] [class*=_block ],
+body[data-ds-glass] [class*=_block_] {
+  backdrop-filter: blur(calc(var(--dsg-blur-main, 26px) * 0.55)) saturate(150%);
+}
+
+/* Code surfaces rendered as <pre> outside the block family (markdown blocks,
+   JSON viewers, command cards, tool payloads). Two pres are transparent by
+   design and stay unfrosted: the context body text and the trajectory source
+   block content. */
+body[data-ds-glass] pre:not([data-context-text]):not([class*=sourceBlock]) {
+  backdrop-filter: blur(calc(var(--dsg-blur-main, 26px) * 0.55)) saturate(150%);
+}
+
+/* The sticky banner strip inside code blocks: scrolled code passes beneath
+   it, so it carries its own frost to keep occluding. */
+body[data-ds-glass] [class$=_bannerWrap],
+body[data-ds-glass] [class*=_bannerWrap_] {
+  backdrop-filter: blur(calc(var(--dsg-blur-main, 26px) * 0.55)) saturate(140%);
+}
