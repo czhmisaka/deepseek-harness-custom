@@ -37,6 +37,7 @@
 overlay/                  # 对 deepseek-harness 仓库的差异文件（保持上游相对路径）
 skills/                   # 用户级 skills（15 个，来自 ~/.agents/skills）
 presets/glm-agent/        # GLM 工具 agent preset（PTC 模式，glm-5.3-flash）
+dynamic-plugins/          # 动态插件：profile 固化插件 + 会话级插件源码与部署说明
 scripts/apply-overlay.sh  # 把 overlay 应用到一个 deepseek-harness 检出
 scripts/install-skills.sh # 把 skills 安装到 ~/.agents/skills/
 ```
@@ -70,6 +71,10 @@ cp presets/glm-agent/* ~/.dsh/.agent-presets/glm-agent/
 ```
 
 `glm-agent` 是基于 PTC 编码 Agent 的 glm-5.3-flash 预设：persona 内置工具执行铁律（强制真实工具调用、先结论后依据、中文简洁），以 `run_code` 为模型编排面。重启 DSH 后在 agent 预设中选择即可。
+
+### 4. 动态插件（可选）
+
+详见 [dynamic-plugins/](dynamic-plugins/)：4 个已固化的 profile patch 插件（computer-use、mac-perf、turn-rail、concurrent-panes）+ 1 个备查早期版（usage-glass）+ 1 个纯会话级插件源码（task-progress-hud）。
 
 ## 收录的 skills（15 个）
 

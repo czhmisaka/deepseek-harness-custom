@@ -1,0 +1,24 @@
+{
+  "name": "dsh-concurrent-panes",
+  "description": "Concurrent panes for the DeepSeek Harness web GUI: a conversation View that tiles 1-4 sessions side by side, each pane streaming that session's live output",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web"
+    }
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=0.1.2-alpha.0",
+    "@deepseek-ai/schemastery": ">=0.1.2-alpha.0"
+  }
+}

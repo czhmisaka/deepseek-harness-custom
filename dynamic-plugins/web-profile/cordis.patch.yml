@@ -1,0 +1,23 @@
+# Your patch layer for this dsh profile, applied after every bundle layer:
+# a top-level YAML array of loader patch entries (id-targeted config
+# overrides, disables, and insert lists; `!!js` expressions allowed).
+- insert:
+    - id: tool-computer-use
+      name: './plugins/computer-use/index.js'
+      config:
+        allowedActions: [screenshot, cursor_position, left_click, double_click, right_click, move, drag, type, key, scroll, wait]
+    # Mac 性能看板（由动态插件 perf-1/pkg-4 固化）：host 半挂 webServer 路由
+    # /mac-perf/snapshot 供 client 半同源轮询；重启持久，无需 cordis_define。
+    - id: mac-perf
+      name: './plugins/mac-perf/index.js'
+    # 对话右侧轮次导航时间轴（由动态插件 railt-1/pkg-1 固化）：纯 client 样式注入
+    # （贯穿脊线 / 刻度层次 / 轮次序号 / 更宽热区 / 升级预览卡），设置页提供
+    # 关闭·精简·标准·强调 四档，选择持久化在 turn-rail 设置命名空间。
+    - id: turn-rail
+      name: './plugins/turn-rail/index.js'
+    # 并发窗格：对话区新增一个 "并发" View，把 1~4 个会话并排铺开，各自实时流式输出
+    # （已定稿记录尾部 + 正在生成的回复 + 正在执行的工具调用），表头带状态/耗时/后台
+    # job/运行中的子 agent/token。窗格自动填入运行中的会话，也可手动钉住。
+    # 布局持久化在 concurrent-panes 设置命名空间（设置页 "并发窗格"）。
+    - id: concurrent-panes
+      name: './plugins/concurrent-panes/index.js'
