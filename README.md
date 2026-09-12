@@ -38,9 +38,25 @@ overlay/                  # 对 deepseek-harness 仓库的差异文件（保持�
 skills/                   # 用户级 skills（15 个，来自 ~/.agents/skills）
 presets/glm-agent/        # GLM 工具 agent preset（PTC 模式，glm-5.3-flash）
 dynamic-plugins/          # 动态插件：profile 固化插件 + 会话级插件源码与部署说明
+scripts/deploy.sh         # 一键部署到新 DSH（见 DEPLOY.md）
 scripts/apply-overlay.sh  # 把 overlay 应用到一个 deepseek-harness 检出
 scripts/install-skills.sh # 把 skills 安装到 ~/.agents/skills/
 ```
+
+## 快速部署到新 DSH
+
+```sh
+git clone https://github.com/czhmisaka/deepseek-harness-custom
+cd deepseek-harness-custom
+
+# 发布版路径（npx 装的 dsh，最快）：
+bash scripts/deploy.sh --yes
+
+# 源码路径（功能全量，含 overlay）：
+bash scripts/deploy.sh --harness /path/to/deepseek-harness --yes
+```
+
+两条路径的差异、基线漂移处理与部署后注意事项见 [DEPLOY.md](DEPLOY.md)。
 
 ## 如何应用
 
